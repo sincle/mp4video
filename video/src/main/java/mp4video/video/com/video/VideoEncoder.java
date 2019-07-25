@@ -172,20 +172,20 @@ public class VideoEncoder {
             if (inputBufferIndex >= 0) {
                 ByteBuffer inputBuffer = encoder.getInputBuffer(inputBufferIndex);
                 inputBuffer.clear();
-                inputBuffer.put(yuv420sp);
+                inputBuffer.put(yuv420sp, 0, yuv420sp.length);
                 Log.e(TAG, "vedio inputBufferIndex: =--------------------------" + inputBufferIndex+","+inputBuffer.hashCode());
-                encoder.queueInputBuffer(inputBufferIndex, 0, yuv420sp.length, System.currentTimeMillis(), 0);
+                encoder.queueInputBuffer(inputBufferIndex, 0, yuv420sp.length, getPts(), 0);
             }
 
 
             MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-
+            //等待直到从输出队列中取出编码的一帧
             while (true) {
                 int outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, 0);
                 //Log.e(TAG, "vedio outputBufferIndex:" + outputBufferIndex);
                 if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     if (muxer != null) {
-                     //   Log.e(TAG, "vedio 调用muxer 设置format");
+                        //   Log.e(TAG, "vedio 调用muxer 设置format");
                         muxer.onMediaFormat(encoder.getOutputFormat());
                     }
                     //Log.e(TAG, "vedio encoder output format changed: " + encoder.getOutputFormat());
@@ -194,7 +194,7 @@ public class VideoEncoder {
 
                 if (outputBufferIndex < 0) {
 
-                  //  Log.e(TAG, "vedio 没有可用的outbuffer");
+                    //  Log.e(TAG, "vedio 没有可用的outbuffer");
                     break;
                 }
 
@@ -203,8 +203,6 @@ public class VideoEncoder {
                         muxer.onMediaFormat(encoder.getOutputFormat());
                     }
                     ByteBuffer outputBuffer = encoder.getOutputBuffer(outputBufferIndex);
-
-//                    ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
                     if (bufferInfo.size != 0) {
                         // adjust the ByteBuffer values to match BufferInfo (not
                         // needed?)
@@ -212,8 +210,6 @@ public class VideoEncoder {
                         outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
                         mBuffer.put(outputBuffer);
                         mBuffer.flip();
-                        //buffer.put(outputBuffer);
-
 //                        Log.e(TAG, "vedio bufferInfo:" + bufferInfo.flags);
                         if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0){
                             Log.e(TAG,"关键帧输出");
@@ -230,7 +226,7 @@ public class VideoEncoder {
             }
 //            Log.d(TAG,"处理一帧："+(System.currentTimeMillis() - start));
         } catch (Exception e) {
-           // Log.e("video error", "" + e.getMessage());
+            // Log.e("video error", "" + e.getMessage());
             e.printStackTrace();
         }
 

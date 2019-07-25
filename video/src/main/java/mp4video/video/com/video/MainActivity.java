@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     private void initCamera(SurfaceHolder holder) {
 
         try {
-            mCamera = Camera.open();
+            mCamera = Camera.open(0);
             Camera.Parameters p = mCamera.getParameters();
             p.setPreviewFormat(ImageFormat.NV21);
             p.setPreviewSize(640, 480);
@@ -80,7 +80,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 ////
 ////            mLastFrameDataTime = System.currentTimeMillis();
 ////        }
-        Log.e(TAG,"---------------------------:"+(System.currentTimeMillis() - currentTimeMillis));
+//        Log.e(TAG,"---------------------------:"+(System.currentTimeMillis() - currentTimeMillis));
         manager.frame(data,640,480,0);
         camera.addCallbackBuffer(data);
     }
