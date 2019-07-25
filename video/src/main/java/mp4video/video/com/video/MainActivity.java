@@ -29,7 +29,6 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang";
         manager = VideoManager.getInstance();
         manager.setup(10,640,480,false);
-        manager.startRecord(true);
         mSurfaceview = (SurfaceView) findViewById(R.id.surfaceview);
         mSurfaceHolder = mSurfaceview.getHolder(); // 绑定SurfaceView，取得SurfaceHolder对象
         mSurfaceHolder.addCallback(this); // SurfaceHolder加入回调接口

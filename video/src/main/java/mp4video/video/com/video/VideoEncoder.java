@@ -30,10 +30,12 @@ public class VideoEncoder {
     private byte[] yuv420sp;    //存储原始采样数据 yuv420
     private byte[] yuv;    //存储原始采样数据 yuv420
     private byte[] yuvI420;    //存储原始采样数据 yuv420
-    private IMuxerCallback muxer;
     private int mColorFormat;
     private ByteBuffer mBuffer;
-
+    private IH264Listener encoderListener;
+    public void setEncoderListener(IH264Listener listener){
+        this.encoderListener = listener;
+    }
     public VideoEncoder(int width, int height) {
         mediaWidth = width;
         mediaHeight = height;
@@ -184,10 +186,6 @@ public class VideoEncoder {
                 int outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, 0);
                 //Log.e(TAG, "vedio outputBufferIndex:" + outputBufferIndex);
                 if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    if (muxer != null) {
-                        //   Log.e(TAG, "vedio 调用muxer 设置format");
-                        muxer.onMediaFormat(encoder.getOutputFormat());
-                    }
                     //Log.e(TAG, "vedio encoder output format changed: " + encoder.getOutputFormat());
                     break;
                 }
@@ -199,28 +197,15 @@ public class VideoEncoder {
                 }
 
                 if (outputBufferIndex >= 0) {
-                    if (muxer != null) {
-                        muxer.onMediaFormat(encoder.getOutputFormat());
-                    }
                     ByteBuffer outputBuffer = encoder.getOutputBuffer(outputBufferIndex);
-                    if (bufferInfo.size != 0) {
-                        // adjust the ByteBuffer values to match BufferInfo (not
-                        // needed?)
-                        outputBuffer.position(bufferInfo.offset);
-                        outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
-                        mBuffer.put(outputBuffer);
-                        mBuffer.flip();
-//                        Log.e(TAG, "vedio bufferInfo:" + bufferInfo.flags);
-                        if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0){
-                            Log.e(TAG,"关键帧输出");
-                        }
-                        bufferInfo.presentationTimeUs = getPts();
-                        if (muxer != null && bufferInfo.presentationTimeUs != 0l) {
-                            Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+mBuffer.array().length);
-                            muxer.mux(mBuffer, bufferInfo);
-                        }
-                        mBuffer.clear();
+
+                    byte[] outData = new byte[outputBuffer.remaining()];
+                    outputBuffer.get(outData, 0, outData.length);
+                    if (encoderListener != null) {
+                        encoderListener.onH264(outData,bufferInfo);
                     }
+                    Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+mBuffer.array().length);
+
                     encoder.releaseOutputBuffer(outputBufferIndex, false);
                 }
             }
@@ -306,10 +291,6 @@ public class VideoEncoder {
         return (System.nanoTime()) / 1000L;
     }
 
-    public void setMuxer(IMuxerCallback muxer) {
-        this.muxer = muxer;
-    }
-
     private void NV21toI420SemiPlanar(byte[] nv21bytes, byte[] i420bytes, int width, int height) {
         System.arraycopy(nv21bytes, 0, i420bytes, 0, width * height);
         for (int i = width * height; i < nv21bytes.length; i += 2) {
@@ -334,5 +315,9 @@ public class VideoEncoder {
             }
         }
         return null;
+    }
+
+    public interface IH264Listener{
+        void onH264(byte[] bytes,MediaCodec.BufferInfo bufferInfo);
     }
 }

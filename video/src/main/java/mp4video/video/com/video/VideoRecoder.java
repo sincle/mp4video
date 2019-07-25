@@ -33,7 +33,6 @@ public class VideoRecoder implements IPreviewFrame, IMuxerCallback {
     private void initEncoder(int width, int height) {
 
         videoEncoder = new VideoEncoder(width, height);
-        videoEncoder.setMuxer(this);
     }
 
     public void setMuxer(MuxerWrapper wrapper){
