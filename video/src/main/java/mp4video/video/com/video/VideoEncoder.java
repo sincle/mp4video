@@ -32,6 +32,7 @@ public class VideoEncoder {
     private byte[] yuvI420;    //存储原始采样数据 yuv420
     private IMuxerCallback muxer;
     private int mColorFormat;
+    private ByteBuffer mBuffer;
 
     public VideoEncoder(int width, int height) {
         mediaWidth = width;
@@ -75,6 +76,8 @@ public class VideoEncoder {
             encoder = MediaCodec.createByCodecName(mediaCodecInfo.getName());
             encoder.configure(mediaFormat, null, null, CONFIGURE_FLAG_ENCODE);
             encoder.start();
+            mBuffer = ByteBuffer.allocateDirect(1024*100);
+
             Log.d(TAG, "视频编码器:" + mediaCodecInfo.getName() + "创建完成!");
         } catch (IOException e) {
             Log.e(TAG, "视频编码器 创建失败");
@@ -148,6 +151,7 @@ public class VideoEncoder {
         }
         return false;
     }
+
     /**
      * 对一帧数据编码
      *
@@ -158,41 +162,28 @@ public class VideoEncoder {
         if (encoder == null) {
             return false;
         }
-        long start = System.currentTimeMillis();
 
         NV21toI420SemiPlanar(NV21, yuv420sp, mediaWidth, mediaHeight);
        // Log.d(TAG,"格式转换："+(System.currentTimeMillis() - start));
         try {
 
-            int pos = 0;
-            ByteBuffer[] inputBuffers = encoder.getInputBuffers();
-            ByteBuffer[] outputBuffers = encoder.getOutputBuffers();
             //一直等待到输入队列中有空闲位置
             int inputBufferIndex = encoder.dequeueInputBuffer(-1);
-
-            //Log.e(TAG, "vedio inputBufferIndex: " + inputBufferIndex);
             if (inputBufferIndex >= 0) {
-                ByteBuffer inputBuffer = inputBuffers[inputBufferIndex];
+                ByteBuffer inputBuffer = encoder.getInputBuffer(inputBufferIndex);
                 inputBuffer.clear();
-                inputBuffer.put(yuv420sp, 0, yuv420sp.length);
-                encoder.queueInputBuffer(inputBufferIndex, 0, yuv420sp.length, getPts(), 0);
+                inputBuffer.put(yuv420sp);
+                Log.e(TAG, "vedio inputBufferIndex: =--------------------------" + inputBufferIndex+","+inputBuffer.hashCode());
+                encoder.queueInputBuffer(inputBufferIndex, 0, yuv420sp.length, System.currentTimeMillis(), 0);
             }
+
+
             MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-            ByteBuffer buffer = null;
-            //等待直到从输出队列中取出编码的一帧
+
             while (true) {
-                int outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo,
-                        0);
+                int outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, 0);
                 //Log.e(TAG, "vedio outputBufferIndex:" + outputBufferIndex);
-                if (outputBufferIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                    // no output available yet
-                   // Log.e(TAG, "vedio no output available yet");
-                    break;
-                } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                    // not expected for an encoder
-                    outputBuffers = encoder.getOutputBuffers();
-                   // Log.e(TAG, "vedio encoder output buffers changed");
-                } else if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     if (muxer != null) {
                      //   Log.e(TAG, "vedio 调用muxer 设置format");
                         muxer.onMediaFormat(encoder.getOutputFormat());
@@ -200,34 +191,39 @@ public class VideoEncoder {
                     //Log.e(TAG, "vedio encoder output format changed: " + encoder.getOutputFormat());
                     break;
                 }
+
                 if (outputBufferIndex < 0) {
 
                   //  Log.e(TAG, "vedio 没有可用的outbuffer");
                     break;
                 }
+
                 if (outputBufferIndex >= 0) {
                     if (muxer != null) {
                         muxer.onMediaFormat(encoder.getOutputFormat());
                     }
-                    ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
+                    ByteBuffer outputBuffer = encoder.getOutputBuffer(outputBufferIndex);
+
+//                    ByteBuffer outputBuffer = outputBuffers[outputBufferIndex];
                     if (bufferInfo.size != 0) {
                         // adjust the ByteBuffer values to match BufferInfo (not
                         // needed?)
                         outputBuffer.position(bufferInfo.offset);
                         outputBuffer.limit(bufferInfo.offset + bufferInfo.size);
-                        buffer = ByteBuffer.allocateDirect(bufferInfo.size);
-                        buffer.put(outputBuffer);
+                        mBuffer.put(outputBuffer);
+                        mBuffer.flip();
+                        //buffer.put(outputBuffer);
 
-                      //  Log.e(TAG, "vedio bufferInfo:" + bufferInfo.flags);
-//                        if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0){
-//                            Log.d(TAG,"关键帧输出");
-//                        }
+//                        Log.e(TAG, "vedio bufferInfo:" + bufferInfo.flags);
+                        if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0){
+                            Log.e(TAG,"关键帧输出");
+                        }
                         bufferInfo.presentationTimeUs = getPts();
                         if (muxer != null && bufferInfo.presentationTimeUs != 0l) {
-                            Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+buffer.array().length);
-                            muxer.mux(buffer, bufferInfo);
+                            Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+mBuffer.array().length);
+                            muxer.mux(mBuffer, bufferInfo);
                         }
-                        buffer.clear();
+                        mBuffer.clear();
                     }
                     encoder.releaseOutputBuffer(outputBufferIndex, false);
                 }
