@@ -1,7 +1,12 @@
 package mp4video.video.com.video;
 
 import android.media.MediaCodec;
+import android.media.MediaMuxer;
 import android.os.HandlerThread;
+import android.util.Log;
+
+import java.nio.ByteBuffer;
+import java.util.Queue;
 
 
 public class VideoManager implements IPreviewFrame, VideoEncoder.IH264Listener {
@@ -10,6 +15,9 @@ public class VideoManager implements IPreviewFrame, VideoEncoder.IH264Listener {
     private int mVideoWidth;
     private int mVideoHeight;
     private VideoEncoder videoEncoder;
+    private MediaMuxer mediaMuxer;
+    private int mVideoTrack;
+    private ByteBuffer mBuffer;
 
     private VideoManager() {
     }
@@ -47,5 +55,39 @@ public class VideoManager implements IPreviewFrame, VideoEncoder.IH264Listener {
         //bytes 为 编码后数据
         H264Wrapper h264Wrapper = new H264Wrapper(bytes, bufferInfo,System.currentTimeMillis());
         H264CacheManager.getInstance().add(h264Wrapper);
+    }
+
+    public void startMerge(String name) {
+        try{
+            mediaMuxer = new MediaMuxer(name, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            mVideoTrack = mediaMuxer.addTrack(videoEncoder.encoder.getOutputFormat());
+            Log.e(TAG,"mvtrack:"+mVideoTrack);
+            if (mVideoTrack != -1) {
+                start();
+            }
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void start() {
+        new Thread(){
+            @Override
+            public void run() {
+
+                Queue<H264Wrapper> cache = H264CacheManager.getInstance().getCache();
+
+                for (int i = 0; i < cache.size(); i++) {
+                    H264Wrapper peek = cache.peek();
+                    byte[] data = peek.getData();
+                    mBuffer = ByteBuffer.allocateDirect(data.length);
+                    mBuffer.put(data);
+                    mBuffer.flip();
+                    mediaMuxer.writeSampleData(mVideoTrack,mBuffer,peek.getBufferInfo());
+                    mBuffer.clear();
+                }
+            }
+        }.start();
     }
 }

@@ -9,7 +9,7 @@ public class H264CacheManager {
 
     private static final String TAG = H264CacheManager.class.getSimpleName();
     private static H264CacheManager instance = new H264CacheManager();
-    private int time = 5000;
+    private int time = 10000;
     private Queue<H264Wrapper> cache = new LinkedList<>();
 
     public static H264CacheManager getInstance(){
@@ -36,5 +36,9 @@ public class H264CacheManager {
             return true;
         }
         return false;
+    }
+
+    public Queue<H264Wrapper> getCache() {
+        return  cache;
     }
 }

@@ -3,16 +3,21 @@ package mp4video.video.com.video;
 import android.graphics.ImageFormat;
 import android.hardware.Camera;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
+import android.widget.Button;
 
 import java.io.IOException;
 
 
 public class MainActivity extends AppCompatActivity implements SurfaceHolder.Callback, Camera.PreviewCallback {
+    private static final int MSG_START = 0x01;
     private String TAG = MainActivity.class.getSimpleName();
     private SurfaceView mSurfaceview = null; // SurfaceView对象：(视图组件)视频显示
     private SurfaceHolder mSurfaceHolder = null; // SurfaceHolder对象：(抽象接口)SurfaceView支持类
@@ -20,7 +25,18 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     private VideoManager manager;
     private long mLastFrameDataTime;
     private String path;
+    private Handler mHandler = new Handler(){
 
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what){
+                case MSG_START:
+                    String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/merge.mp4";
+                    VideoManager.getInstance().startMerge(name);
+                    break;
+            }
+        }
+    };
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -35,6 +51,16 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         // mSurfaceHolder.setFixedSize(176, 144); // 预览大小設置
         mSurfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);// 設置顯示器類型，setType必须设置
 
+        findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startMerge();
+            }
+        });
+    }
+
+    private void startMerge() {
+        mHandler.sendEmptyMessageDelayed(MSG_START,5000);
     }
 
     private void initCamera(SurfaceHolder holder) {

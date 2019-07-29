@@ -23,7 +23,7 @@ public class VideoEncoder {
 
     private static final String TAG = VideoEncoder.class.getSimpleName();
     private static final String MIME_TYPE = "video/avc"; // H.264 Advanced Video
-    private MediaCodec encoder = null;
+    public MediaCodec encoder = null;
     private int mediaWidth = 1280;
     private int mediaHeight = 720;
 
