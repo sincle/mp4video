@@ -26,4 +26,22 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/surfaceview" />
 
+    <Button
+        android:id="@+id/start_continue"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:text="开始持续录像"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/button" />
+
+    <Button
+        android:id="@+id/stop_continue"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="结束持续录像"
+        app:layout_constraintStart_toStartOf="@+id/start_continue"
+        app:layout_constraintTop_toBottomOf="@+id/start_continue" />
+
 </android.support.constraint.ConstraintLayout>

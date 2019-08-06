@@ -1,7 +1,5 @@
 package mp4video.video.com.video;
 
-import android.util.Log;
-
 import java.util.LinkedList;
 
 public class AACCacheManager {
@@ -21,11 +19,6 @@ public class AACCacheManager {
 //            Log.e(TAG,"remove:"+remove.hashCode());
         }
         boolean offer = cache.offer(aac);
-        if (offer){
-//            Log.e(TAG,"offer:"+aac.getBufferInfo().presentationTimeUs+",size:"+aac.getData().length+",hashcode:"+aac.hashCode());
-        }else {
-            Log.e(TAG,"----------------:"+aac.getPts());
-        }
     }
 
     private boolean isTimeout(AACData aac){

@@ -42,9 +42,11 @@ public class VideoEncoder {
         yuv420sp = new byte[mediaWidth * mediaHeight * 3 / 2];
         yuv = new byte[mediaWidth * mediaHeight * 3 / 2];
         yuvI420 = new byte[mediaWidth * mediaHeight * 3 / 2];
-        initVideoEncoder();
     }
 
+    public void start(){
+        initVideoEncoder();
+    }
     public MediaCodec getEncoder() {
         return encoder;
     }
@@ -206,7 +208,7 @@ public class VideoEncoder {
 
                     byte[] outData = new byte[outputBuffer.remaining()];
                     outputBuffer.get(outData, 0, outData.length);
-//                    Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+outData.hashCode());
+                    Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+outData.hashCode());
                     if (encoderListener != null && bufferInfo.presentationTimeUs != 0) {
                         encoderListener.onH264(outData,bufferInfo.flags,bufferInfo.presentationTimeUs,bufferInfo.size,bufferInfo.offset);
                     }
@@ -223,10 +225,15 @@ public class VideoEncoder {
         return false;
     }
 
-    public void releaseCodec() {
+
+    public void stop(){
+        releaseCodec();
+    }
+    private void releaseCodec() {
         if (encoder != null) {
             encoder.stop();
             encoder.release();
+            Log.d(TAG,"video codec stop and release");
             encoder = null;
         }
     }

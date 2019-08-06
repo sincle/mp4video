@@ -1,7 +1,5 @@
 package mp4video.video.com.video;
 
-import android.util.Log;
-
 import java.util.LinkedList;
 
 public class H264CacheManager {
@@ -15,15 +13,12 @@ public class H264CacheManager {
         return instance;
     }
 
-    public void add(H264Data h264){
+    public synchronized void add(H264Data h264){
         if (isTimeout(cache.peek())){
             H264Data remove = cache.remove();
 //            Log.e(TAG,"remove:"+remove.hashCode());
         }
         boolean offer = cache.offer(h264);
-        if (offer){
-//            Log.e(TAG,"offer:"+h264.hashCode());
-        }
     }
 
     private boolean isTimeout(H264Data h264){
@@ -37,7 +32,7 @@ public class H264CacheManager {
         return false;
     }
 
-    public LinkedList<H264Data> getCloneCache() {
+    public synchronized LinkedList<H264Data> getCloneCache() {
         return  (LinkedList<H264Data>)cache.clone();
     }
 

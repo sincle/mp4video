@@ -78,16 +78,16 @@ public class VideoRecoder implements IPreviewFrame, IMuxerCallback {
     }
 
     public void release(){
-        if(videoEncoder != null){
-            videoEncoder.releaseCodec();
-            videoEncoder = null;
-        }
-        if(encodeThread != null){
-            try {
-                encodeThread.quit();
-            }catch (Exception e){
-            }
-        }
+//        if(videoEncoder != null){
+//            videoEncoder.releaseCodec();
+//            videoEncoder = null;
+//        }
+//        if(encodeThread != null){
+//            try {
+//                encodeThread.quit();
+//            }catch (Exception e){
+//            }
+//        }
     }
 
     @Override
