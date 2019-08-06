@@ -199,7 +199,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         return deviceLevel;
     }
 
-    @SuppressLint("MissingPermission")
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
         try {

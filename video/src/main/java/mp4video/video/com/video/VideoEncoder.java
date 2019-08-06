@@ -23,7 +23,7 @@ public class VideoEncoder {
 
     private static final String TAG = VideoEncoder.class.getSimpleName();
     private static final String MIME_TYPE = "video/avc"; // H.264 Advanced Video
-    public MediaCodec encoder = null;
+    private MediaCodec encoder = null;
     private int mediaWidth = 1280;
     private int mediaHeight = 720;
 
@@ -44,6 +44,11 @@ public class VideoEncoder {
         yuvI420 = new byte[mediaWidth * mediaHeight * 3 / 2];
         initVideoEncoder();
     }
+
+    public MediaCodec getEncoder() {
+        return encoder;
+    }
+
     /**
      * color formats that we can use in this class
      */
@@ -71,7 +76,7 @@ public class VideoEncoder {
 
 
             mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE, mediaWidth, mediaHeight);
-            mediaFormat.setInteger(KEY_BIT_RATE, 1200000); //比特率
+            mediaFormat.setInteger(KEY_BIT_RATE, 1500000); //比特率
             mediaFormat.setInteger(KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar); //
             mediaFormat.setInteger(KEY_FRAME_RATE, 20); //帧率
             mediaFormat.setInteger(KEY_I_FRAME_INTERVAL, 1); //I 帧间隔
@@ -175,7 +180,7 @@ public class VideoEncoder {
                 ByteBuffer inputBuffer = encoder.getInputBuffer(inputBufferIndex);
                 inputBuffer.clear();
                 inputBuffer.put(yuv420sp, 0, yuv420sp.length);
-                Log.e(TAG, "vedio inputBufferIndex: =--------------------------" + inputBufferIndex+","+inputBuffer.hashCode());
+//                Log.e(TAG, "vedio inputBufferIndex: =--------------------------" + inputBufferIndex+","+inputBuffer.hashCode());
                 encoder.queueInputBuffer(inputBufferIndex, 0, yuv420sp.length, getPts(), 0);
             }
 
@@ -186,13 +191,13 @@ public class VideoEncoder {
                 int outputBufferIndex = encoder.dequeueOutputBuffer(bufferInfo, 0);
                 //Log.e(TAG, "vedio outputBufferIndex:" + outputBufferIndex);
                 if (outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                    //Log.e(TAG, "vedio encoder output format changed: " + encoder.getOutputFormat());
+//                    Log.e(TAG, "vedio encoder output format changed: " + encoder.getOutputFormat());
                     break;
                 }
 
                 if (outputBufferIndex < 0) {
 
-                    //  Log.e(TAG, "vedio 没有可用的outbuffer");
+//                    Log.e(TAG, "vedio 没有可用的outbuffer"+outputBufferIndex);
                     break;
                 }
 
@@ -201,10 +206,10 @@ public class VideoEncoder {
 
                     byte[] outData = new byte[outputBuffer.remaining()];
                     outputBuffer.get(outData, 0, outData.length);
-                    if (encoderListener != null) {
-                        encoderListener.onH264(outData,bufferInfo);
+//                    Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+outData.hashCode());
+                    if (encoderListener != null && bufferInfo.presentationTimeUs != 0) {
+                        encoderListener.onH264(outData,bufferInfo.flags,bufferInfo.presentationTimeUs,bufferInfo.size,bufferInfo.offset);
                     }
-                    Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+mBuffer.array().length);
 
                     encoder.releaseOutputBuffer(outputBufferIndex, false);
                 }
@@ -218,75 +223,14 @@ public class VideoEncoder {
         return false;
     }
 
-    //顺时针旋转90
-    private void YUV420spRotate90(byte[] src, byte[] dst, int srcWidth, int srcHeight) {
-        int wh = srcWidth * srcHeight;
-        int uvHeight = srcHeight >> 1;
-
-        //旋转Y
-        int k = 0;
-        for (int i = 0; i < srcWidth; i++) {
-            int nPos = 0;
-            for (int j = 0; j < srcHeight; j++) {
-                dst[k] = src[nPos + i];
-                k++;
-                nPos += srcWidth;
-            }
-        }
-
-        for (int i = 0; i < srcWidth; i += 2) {
-            int nPos = wh;
-            for (int j = 0; j < uvHeight; j++) {
-                dst[k] = src[nPos + i];
-                dst[k + 1] = src[nPos + i + 1];
-                k += 2;
-                nPos += srcWidth;
-            }
-        }
-
-    }
-
-
-    // YYYYYYYY UVUV(nv12)--> YYYYYYYY VUVU(nv21)
-    private byte[] nv12ToNV21(byte[] nv12, int width, int height) {
-        byte[] ret = new byte[width * height * 3 /2];
-        int framesize = width * height;
-        int i = 0, j = 0;
-        // 拷贝Y分量
-        System.arraycopy(nv12, 0,ret , 0, framesize);
-        // 拷贝UV分量
-        for (j = framesize; j < nv12.length; j += 2) {
-            ret[j] = nv12[j+1];
-            ret[j+1] = nv12[j];
-        }
-        return ret;
-    }
-    public void start() {
-//        if (encoder != null) {
-//            encoder.start();
-//        }
-    }
-
-    public void stop() {
-//        if (encoder != null) {
-//            encoder.stop();
-//        }
-    }
-
     public void releaseCodec() {
         if (encoder != null) {
-            stop();
+            encoder.stop();
             encoder.release();
             encoder = null;
         }
     }
-    /**
-     * Generates the presentation time for frame N, in nanoseconds.
-     */
-    private static long computePresentationTimeNsec(int frameIndex) {
-        final long ONE_BILLION = 1000000;
-        return frameIndex * ONE_BILLION / 25;
-    }
+
     private long getPts() {
         return (System.nanoTime()) / 1000L;
     }
@@ -318,6 +262,6 @@ public class VideoEncoder {
     }
 
     public interface IH264Listener{
-        void onH264(byte[] bytes,MediaCodec.BufferInfo bufferInfo);
+        void onH264(byte[] outData, int flags, long pts, int size, int offset);
     }
 }

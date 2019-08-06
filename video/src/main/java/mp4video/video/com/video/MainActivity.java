@@ -8,6 +8,7 @@ import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
@@ -31,12 +32,65 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         public void handleMessage(Message msg) {
             switch (msg.what){
                 case MSG_START:
-                    String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/merge.mp4";
-                    VideoManager.getInstance().startMerge(name);
+                    String name = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/"+System.currentTimeMillis()+".mp4";
+                    //VideoManager.getInstance().startMerge(name);
                     break;
             }
         }
     };
+    private VideoManager.IRecordListener mOnceRecordListnener = new VideoManager.IRecordListener() {
+        @Override
+        public void onStart() {
+
+        }
+
+        @Override
+        public void onRecording() {
+
+        }
+
+        @Override
+        public void onEnd() {
+
+        }
+
+        @Override
+        public void onError() {
+
+        }
+    };
+
+    private VideoManager.IRecordListener mEventRecordListener = new VideoManager.IRecordListener() {
+        @Override
+        public void onStart() {
+
+        }
+
+        @Override
+        public void onRecording() {
+
+        }
+
+        @Override
+        public void onEnd() {
+            //检测有人
+//            manager.startRecord(Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/"+System.currentTimeMillis()+".mp4",
+//                    30,
+//                    mOnceRecordListnener);
+        }
+
+        @Override
+        public void onError() {
+
+        }
+    };
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        Log.e(TAG,"keycode:"+keyCode);
+        return super.onKeyDown(keyCode, event);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,23 +98,25 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
         path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang";
         manager = VideoManager.getInstance();
-        manager.setup(10,640,480,false);
+        manager.setup(VideoManager.Mode.EVENT, 640, 480, false);
         mSurfaceview = (SurfaceView) findViewById(R.id.surfaceview);
         mSurfaceHolder = mSurfaceview.getHolder(); // 绑定SurfaceView，取得SurfaceHolder对象
         mSurfaceHolder.addCallback(this); // SurfaceHolder加入回调接口
         // mSurfaceHolder.setFixedSize(176, 144); // 预览大小設置
         mSurfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);// 設置顯示器類型，setType必须设置
 
+//        manager.startRecord(null);
         findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startMerge();
+                String path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/"+System.currentTimeMillis()+".mp4";
+                manager.eventRecord(path,mEventRecordListener);
             }
         });
     }
 
     private void startMerge() {
-        mHandler.sendEmptyMessageDelayed(MSG_START,5000);
+        mHandler.sendEmptyMessageDelayed(MSG_START,10000);
     }
 
     private void initCamera(SurfaceHolder holder) {
