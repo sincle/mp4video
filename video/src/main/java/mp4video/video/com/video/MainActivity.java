@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     };
     private VideoManager.IRecordListener mOnceRecordListnener = new VideoManager.IRecordListener() {
         @Override
-        public void onStart() {
+        public void onRecordStart() {
 
         }
 
@@ -50,7 +50,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         }
 
         @Override
-        public void onEnd() {
+        public void onRecordEnd() {
 
         }
 
@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
     private VideoManager.IRecordListener mEventRecordListener = new VideoManager.IRecordListener() {
         @Override
-        public void onStart() {
+        public void onRecordStart() {
 
         }
 
@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         }
 
         @Override
-        public void onEnd() {
+        public void onRecordEnd() {
             //检测有人
 //            manager.startRecord(Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/"+System.currentTimeMillis()+".mp4",
 //                    30,
@@ -98,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
         path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang";
         manager = VideoManager.getInstance();
-        manager.setup(VideoManager.Mode.CONTINUE, 640, 480, false);
+        manager.setup(VideoManager.Mode.EVENT, 640, 480, false);
         mSurfaceview = (SurfaceView) findViewById(R.id.surfaceview);
         mSurfaceHolder = mSurfaceview.getHolder(); // 绑定SurfaceView，取得SurfaceHolder对象
         mSurfaceHolder.addCallback(this); // SurfaceHolder加入回调接口
@@ -117,14 +117,28 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         findViewById(R.id.start_continue).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                manager.startRecord(null);
+                manager.startContinueRecord(null);
             }
         });
 
         findViewById(R.id.stop_continue).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                manager.stopRecord();
+                manager.stopContinueRecord();
+            }
+        });
+
+        findViewById(R.id.start_event).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                manager.startReadyRecord();
+            }
+        });
+
+        findViewById(R.id.end_event).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                manager.stopReadyRecord();
             }
         });
     }

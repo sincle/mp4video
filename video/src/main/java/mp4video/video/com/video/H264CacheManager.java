@@ -46,4 +46,7 @@ public class H264CacheManager {
     public void setAvailableTime(int time) {
         this.time = time;
     }
+    public void clear(){
+        cache.clear();
+    }
 }

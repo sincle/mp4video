@@ -86,8 +86,7 @@ public class VideoEncoder {
             encoder.configure(mediaFormat, null, null, CONFIGURE_FLAG_ENCODE);
             encoder.start();
             mBuffer = ByteBuffer.allocateDirect(1024*100);
-
-            Log.d(TAG, "视频编码器:" + mediaCodecInfo.getName() + "创建完成!");
+            Log.d(TAG,"video media codec ready");
         } catch (IOException e) {
             Log.e(TAG, "视频编码器 创建失败");
             e.printStackTrace();

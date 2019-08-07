@@ -46,4 +46,8 @@ public class AACCacheManager {
     public void setAvailableTime(int time) {
         this.time = time;
     }
+
+    public void clear(){
+        cache.clear();
+    }
 }
