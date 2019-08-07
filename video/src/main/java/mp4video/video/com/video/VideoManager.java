@@ -11,6 +11,8 @@ import android.os.Message;
 import android.util.Log;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -19,16 +21,21 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, VideoEncoder.IH264Listener {
     private volatile boolean isStartRecord;
     private volatile boolean isVideoEncoding;
-
+    private int mEventVideoAfter = VideoConfig.eventVideoAfter;
     private HandlerThread eventThread;
     private EventHandler eventHandler;
     private AudioEncoder audioEncoder;
     private ContinueRecordThread mContinueRecordThread;
+    private EventRecordThread eventRecordThread;
+    private boolean isAudioEnable;
 
     public enum Mode {
         CONTINUE, EVENT
     }
 
+    public enum VideoType{
+        OPENDOOR,OTHER
+    }
     private static VideoManager mInstance;
     private String TAG = VideoManager.class.getSimpleName();
     private int mVideoWidth;
@@ -52,8 +59,7 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
         this.recordMode = mode;
         this.mVideoWidth = width;
         this.mVideoHeight = height;
-        H264CacheManager.getInstance().setAvailableTime(10000);
-        AACCacheManager.getInstance().setAvailableTime(10000);
+        this.isAudioEnable = isAudioEnable;
         mH264Buffer = ByteBuffer.allocateDirect(1024 * 100);
         mAACBuffer = ByteBuffer.allocateDirect(1024);
         eventThread = new HandlerThread("event record");
@@ -122,7 +128,10 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
         isStartRecord = true;
         isVideoEncoding = true;
         startVideoEncoder();
-        startAudioEncoder();
+        //音频开启
+        if (isAudioEnable){
+            startAudioEncoder();
+        }
         //开始 muxer
         mContinueRecordThread = new ContinueRecordThread(listener);
         mContinueRecordThread.start();
@@ -142,9 +151,11 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
             Log.w(TAG,"录像开启错误:事件录像准备已开启");
         }
         isVideoEncoding = true;
+        if (isAudioEnable){
+            startAudioEncoder();
+            audioEncoder.setEncoderListener(this);
+        }
         startVideoEncoder();
-        startAudioEncoder();
-        audioEncoder.setEncoderListener(this);
         videoEncoder.setEncoderListener(this);
     }
 
@@ -152,9 +163,10 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
      * 开启事件触发录像,仅 {@link Mode#EVENT} 支持
      * {@link VideoManager#startReadyRecord} 已调用
      * @param path
+     * @param videoType
      * @param listener
      */
-    public void eventRecord(String path, IRecordListener listener) {
+    public void eventRecord(String path, VideoType videoType,IRecordListener listener) {
         if (recordMode != Mode.EVENT) {
             Log.e(TAG, "仅事件录像支持");
             return;
@@ -163,9 +175,30 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
             Log.e(TAG, "事件录像:当前录像已经停止");
             return;
         }
-        eventHandler.postDelayed(new EventRecordThread(path, listener), 5 * 1000);
+        //如果是开门事件 则继续
+        if (videoType != VideoType.OPENDOOR && eventRecordThread != null && hasCallBacks(eventRecordThread)){
+            Log.w(TAG,"存在其他事件视频任务,不继续");
+            return;
+        }
+
+        eventRecordThread = new EventRecordThread(path, listener);
+        eventHandler.postDelayed(eventRecordThread, mEventVideoAfter);
     }
 
+    private boolean hasCallBacks(Runnable runnable){
+        Class<? extends EventHandler> eventHandlerClass = eventHandler.getClass();
+        try {
+            Method hasCallbacks = eventHandlerClass.getMethod("hasCallbacks", Runnable.class);
+            return (boolean) hasCallbacks.invoke(eventHandler, runnable);
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
     /**
      * 在事件视频模式下,录制固定时长视频 仅 {@link Mode#EVENT} 支持
      */
@@ -200,7 +233,9 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
         isVideoEncoding = false;
         isStartRecord = false;
         mH264Queue.add(new H264Data(null, null));
-        stopAudioEncoder();
+        if (isAudioEnable){
+            stopAudioEncoder();
+        }
         stopVideoEncoder();
     }
 
@@ -217,10 +252,12 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
             return;
         }
         isVideoEncoding = false;
-        AACCacheManager.getInstance().clear();
-        H264CacheManager.getInstance().clear();
-        stopAudioEncoder();
+        if (isAudioEnable){
+            stopAudioEncoder();
+            H264CacheManager.getInstance().clear();
+        }
         stopVideoEncoder();
+        AACCacheManager.getInstance().clear();
     }
 
     @Override
@@ -256,7 +293,9 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
 
         public ContinueRecordThread(IRecordListener listener) {
             this.listener = listener;
-            audioEncoder.setEncoderListener(this);
+            if (isAudioEnable){
+                audioEncoder.setEncoderListener(this);
+            }
             videoEncoder.setEncoderListener(this);
             startMuxer();
             setName("ContinueRecordThread");
@@ -267,7 +306,7 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
             String name = Environment.getExternalStorageDirectory().getAbsolutePath() + "/kang/" + System.currentTimeMillis() + ".mp4";
             try {
                 muxer = new MediaMuxer(name, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-                MediaFormat videoFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, 640, 480);
+                MediaFormat videoFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, VideoConfig.videoWidth, VideoConfig.videoHeight);
                 byte[] header_sps = {0, 0, 0, 1, 103, 66, -128, 30, -38, 2, -128, -10, -128, 109, 10, 19, 80};
                 byte[] header_pps = {0, 0, 0, 1, 104, -50, 6, -30};
                 videoFormat.setByteBuffer("csd-0", ByteBuffer.wrap(header_sps));
@@ -275,19 +314,30 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
 
                 videoTrack = muxer.addTrack(videoFormat);
 
-                MediaFormat audioFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, 16000, 1);
-                audioFormat.setInteger(MediaFormat.KEY_IS_ADTS, 1);
-                byte[] data = new byte[]{(byte) 0x14, (byte) 0x08};
-                audioFormat.setByteBuffer("csd-0", ByteBuffer.wrap(data));
+                if (isAudioEnable){
+                    MediaFormat audioFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, 16000, 1);
+                    audioFormat.setInteger(MediaFormat.KEY_IS_ADTS, 1);
+                    byte[] data = new byte[]{(byte) 0x14, (byte) 0x08};
+                    audioFormat.setByteBuffer("csd-0", ByteBuffer.wrap(data));
 
-                audioTrack = muxer.addTrack(audioFormat);
+                    audioTrack = muxer.addTrack(audioFormat);
 
-                if (videoTrack != -1 && audioTrack != -1) {
-                    muxer.start();
-                    startTime = System.nanoTime() / 1000;
-                    isstop = false;
-                    if (listener != null) {
-                        listener.onRecordStart();
+                    if (videoTrack != -1 && audioTrack != -1) {
+                        muxer.start();
+                        startTime = System.nanoTime() / 1000;
+                        isstop = false;
+                        if (listener != null) {
+                            listener.onRecordStart();
+                        }
+                    }
+                }else {
+                    if (videoTrack != -1) {
+                        muxer.start();
+                        startTime = System.nanoTime() / 1000;
+                        isstop = false;
+                        if (listener != null) {
+                            listener.onRecordStart();
+                        }
                     }
                 }
                 Log.d(TAG, "开启新一次录像");
@@ -324,7 +374,7 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
 
                     mH264Buffer.clear();
 
-                    if (frameUs - startTime > 10 * 1000 * 1000) {
+                    if (frameUs - startTime > VideoConfig.continueVideoLength) {
                         isstop = true;
                         if (muxer != null) {
                             try {
@@ -448,20 +498,31 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
 
                 videoTrack = muxer.addTrack(videoFormat);
 
-                MediaFormat audioFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, 16000, 1);
-                audioFormat.setInteger(MediaFormat.KEY_IS_ADTS, 1);
-                byte[] data = new byte[]{(byte) 0x14, (byte) 0x08};
-                audioFormat.setByteBuffer("csd-0", ByteBuffer.wrap(data));
+                if (isAudioEnable){
+                    MediaFormat audioFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, 16000, 1);
+                    audioFormat.setInteger(MediaFormat.KEY_IS_ADTS, 1);
+                    byte[] data = new byte[]{(byte) 0x14, (byte) 0x08};
+                    audioFormat.setByteBuffer("csd-0", ByteBuffer.wrap(data));
 
-                audioTrack = muxer.addTrack(audioFormat);
+                    audioTrack = muxer.addTrack(audioFormat);
 
-                if (videoTrack != -1 && audioTrack != -1) {
-                    muxer.start();
-                    if (listener != null) {
-                        listener.onRecordStart();
+                    if (videoTrack != -1 && audioTrack != -1) {
+                        muxer.start();
+                        if (listener != null) {
+                            listener.onRecordStart();
+                        }
+                    } else {
+                        throw new Exception("add track failed");
                     }
-                } else {
-                    throw new Exception("add track failed");
+                }else {
+                    if (videoTrack != -1) {
+                        muxer.start();
+                        if (listener != null) {
+                            listener.onRecordStart();
+                        }
+                    } else {
+                        throw new Exception("add track failed");
+                    }
                 }
                 Log.d(TAG, "--------------------------------------");
             } catch (Exception e) {
@@ -506,27 +567,29 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
                     mH264Buffer.clear();
                 }
 
-                int aacSize = aacCache.size();
-                Log.e(TAG, "aacCache.size:" + aacSize);
+                if (isAudioEnable){
+                    int aacSize = aacCache.size();
+                    Log.e(TAG, "aacCache.size:" + aacSize);
 
-                for (int i = 0; i < aacSize; i++) {
-                    AACData poll = aacCache.get(i);
-                    byte[] data = poll.getData();
-                    mAACBuffer.put(data);
-                    mAACBuffer.flip();
-                    MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-                    bufferInfo.flags = poll.getFlag();
-                    bufferInfo.presentationTimeUs = poll.getPts();
-                    bufferInfo.size = poll.getSize();
-                    bufferInfo.offset = poll.getOffset();
+                    for (int i = 0; i < aacSize; i++) {
+                        AACData poll = aacCache.get(i);
+                        byte[] data = poll.getData();
+                        mAACBuffer.put(data);
+                        mAACBuffer.flip();
+                        MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
+                        bufferInfo.flags = poll.getFlag();
+                        bufferInfo.presentationTimeUs = poll.getPts();
+                        bufferInfo.size = poll.getSize();
+                        bufferInfo.offset = poll.getOffset();
 
-                    if (mLastAudioTime == bufferInfo.presentationTimeUs) {
-                        Log.e(TAG, "aac buffer info :" + bufferInfo.presentationTimeUs + ",index:" + i + ",size:" + data.length + ",aacCache:" + data.hashCode());
-                    }
-                    mLastAudioTime = bufferInfo.presentationTimeUs;
+                        if (mLastAudioTime == bufferInfo.presentationTimeUs) {
+                            Log.e(TAG, "aac buffer info :" + bufferInfo.presentationTimeUs + ",index:" + i + ",size:" + data.length + ",aacCache:" + data.hashCode());
+                        }
+                        mLastAudioTime = bufferInfo.presentationTimeUs;
 //                    Log.e(TAG, "aac buffer info :" + bufferInfo.presentationTimeUs + ",index:" + i +",size:"+data.length+ ",aacCache:" + data.hashCode());
-                    muxer.writeSampleData(audioTrack, mAACBuffer, bufferInfo);
-                    mAACBuffer.clear();
+                        muxer.writeSampleData(audioTrack, mAACBuffer, bufferInfo);
+                        mAACBuffer.clear();
+                    }
                 }
 
                 if (muxer != null) {

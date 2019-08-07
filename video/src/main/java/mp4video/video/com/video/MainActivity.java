@@ -98,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
         path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang";
         manager = VideoManager.getInstance();
-        manager.setup(VideoManager.Mode.EVENT, 640, 480, false);
+        manager.setup(VideoManager.Mode.EVENT, VideoConfig.videoWidth, VideoConfig.videoHeight, false);
         mSurfaceview = (SurfaceView) findViewById(R.id.surfaceview);
         mSurfaceHolder = mSurfaceview.getHolder(); // 绑定SurfaceView，取得SurfaceHolder对象
         mSurfaceHolder.addCallback(this); // SurfaceHolder加入回调接口
@@ -110,7 +110,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             @Override
             public void onClick(View v) {
                 String path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/"+System.currentTimeMillis()+".mp4";
-                manager.eventRecord(path,mEventRecordListener);
+                manager.eventRecord(path, VideoManager.VideoType.OPENDOOR,mEventRecordListener);
             }
         });
 

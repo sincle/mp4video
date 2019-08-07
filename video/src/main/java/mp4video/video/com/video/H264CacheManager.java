@@ -6,7 +6,7 @@ public class H264CacheManager {
 
     private static final String TAG = H264CacheManager.class.getSimpleName();
     private static H264CacheManager instance = new H264CacheManager();
-    private int time = 15000;
+    private int time = VideoConfig.h264CacheTime;
     private LinkedList<H264Data> cache = new LinkedList<>();
 
     public static H264CacheManager getInstance(){

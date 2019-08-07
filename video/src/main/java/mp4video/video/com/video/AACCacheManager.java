@@ -6,7 +6,7 @@ public class AACCacheManager {
 
     private static final String TAG = AACCacheManager.class.getSimpleName();
     private static AACCacheManager instance = new AACCacheManager();
-    private int time = 15000;
+    private int time = VideoConfig.aacCacheTime;
     private LinkedList<AACData> cache = new LinkedList<>();
 
     public static AACCacheManager getInstance(){
