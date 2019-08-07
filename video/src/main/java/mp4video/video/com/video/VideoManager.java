@@ -10,7 +10,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -199,22 +198,6 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
         }
         return false;
     }
-    /**
-     * 在事件视频模式下,录制固定时长视频 仅 {@link Mode#EVENT} 支持
-     */
-    @Deprecated
-    public void startRecord(String path, final int length, IRecordListener listener) {
-        if (recordMode != Mode.EVENT) {
-            Log.e(TAG, "仅事件录像支持");
-            return;
-        }
-
-        if (isStartRecord) {
-            return;
-        }
-        isStartRecord = true;
-        eventHandler.post(new OnceRecordThread(path, length, listener));
-    }
 
     /**
      * 停止持续录像 停止音视频 采集
@@ -265,10 +248,6 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
 //         Log.d(TAG, "h264 ------------------------size:" + mH264Queue.size());
         if (recordMode == Mode.EVENT) {
             H264Data h264Data = new H264Data(bytes, flags, pts, size, offset);
-            if (isStartRecord) {
-                boolean offer = mH264Queue.offer(h264Data);
-                Log.d(TAG, "h264 offer:" + offer + ",size:" + mH264Queue.size());
-            }
             //缓存 todo
             H264CacheManager.getInstance().add(h264Data);
         }
@@ -607,96 +586,6 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
                         }
                     }
                 }
-            } catch (Exception e) {
-                if (listener != null) {
-                    listener.onError();
-                }
-                e.printStackTrace();
-            }
-        }
-    }
-
-    @Deprecated
-    private class OnceRecordThread extends Thread {
-
-        private String path;
-        private int length;
-        private IRecordListener listener;
-        private boolean flag;
-
-        public OnceRecordThread(String path, int length, IRecordListener listener) {
-            this.path = path;
-            this.length = length;
-            this.listener = listener;
-            setName("OnceRecordThread");
-        }
-
-        @Override
-        public void run() {
-
-            try {
-                MediaMuxer muxer = new MediaMuxer(path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
-                int track = muxer.addTrack(videoEncoder.getEncoder().getOutputFormat());
-                Log.e(TAG, "mvtrack:" + track);
-                if (track != -1) {
-                    muxer.start();
-                    if (listener != null) {
-                        listener.onRecordStart();
-                    }
-                } else {
-                    throw new Exception("add track failed");
-                }
-
-                long start = System.currentTimeMillis();
-                if (listener != null) {
-                    listener.onRecording();
-                }
-                while (!flag) {
-                    H264Data take = mH264Queue.take();
-                    Log.d(TAG, "h264 take :size:" + mH264Queue.size());
-                    long frameMs = take.getPts();
-                    byte[] data = take.getData();
-//                    Log.e(TAG,"data length:"+data.length);
-                    mH264Buffer.put(data);
-                    mH264Buffer.flip();
-                    MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-                    bufferInfo.flags = take.getFlags();
-                    bufferInfo.presentationTimeUs = take.getPts();
-                    bufferInfo.size = take.getSize();
-                    bufferInfo.offset = take.getOffset();
-
-                    Log.d(TAG, "buffer info :" + bufferInfo.presentationTimeUs);
-                    muxer.writeSampleData(track, mH264Buffer, bufferInfo);
-                    mH264Buffer.clear();
-                    if (frameMs - start > length * 1000) {
-                        if (muxer != null) {
-                            try {
-                                muxer.stop();
-                                muxer.release();
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            } finally {
-                                muxer = null;
-                                isStartRecord = false;
-                                if (listener != null) {
-                                    listener.onRecordEnd();
-                                }
-                                flag = true;
-                                mH264Queue.clear();
-                            }
-                        }
-                    }
-                }
-            } catch (IOException e) {
-                if (listener != null) {
-                    listener.onError();
-                }
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                if (listener != null) {
-                    listener.onError();
-                }
-                e.printStackTrace();
             } catch (Exception e) {
                 if (listener != null) {
                     listener.onError();
