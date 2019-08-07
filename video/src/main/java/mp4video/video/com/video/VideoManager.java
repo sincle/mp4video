@@ -237,10 +237,10 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
         isVideoEncoding = false;
         if (isAudioEnable){
             stopAudioEncoder();
-            H264CacheManager.getInstance().clear();
+            AACCacheManager.getInstance().clear();
         }
         stopVideoEncoder();
-        AACCacheManager.getInstance().clear();
+        H264CacheManager.getInstance().clear();
     }
 
     @Override
@@ -541,6 +541,7 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
                     if (mLastVideoTime == bufferInfo.presentationTimeUs) {
                         Log.e(TAG, "h264 buffer info :" + bufferInfo.presentationTimeUs + ",index:" + i + ",h254Cache:" + data.hashCode());
                     }
+                    Log.e(TAG, "h264- buffer info :" + bufferInfo.presentationTimeUs + ",index:" + i + ",h254Cache:" + data.hashCode());
                     mLastVideoTime = bufferInfo.presentationTimeUs;
                     muxer.writeSampleData(videoTrack, mH264Buffer, bufferInfo);
                     mH264Buffer.clear();
@@ -564,6 +565,7 @@ public class VideoManager implements IPreviewFrame, AudioEncoder.IAACListener, V
                         if (mLastAudioTime == bufferInfo.presentationTimeUs) {
                             Log.e(TAG, "aac buffer info :" + bufferInfo.presentationTimeUs + ",index:" + i + ",size:" + data.length + ",aacCache:" + data.hashCode());
                         }
+                        Log.e(TAG, "aac- buffer info :" + bufferInfo.presentationTimeUs + ",index:" + i + ",size:" + data.length + ",aacCache:" + data.hashCode());
                         mLastAudioTime = bufferInfo.presentationTimeUs;
 //                    Log.e(TAG, "aac buffer info :" + bufferInfo.presentationTimeUs + ",index:" + i +",size:"+data.length+ ",aacCache:" + data.hashCode());
                         muxer.writeSampleData(audioTrack, mAACBuffer, bufferInfo);

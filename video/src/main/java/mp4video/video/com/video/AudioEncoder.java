@@ -118,7 +118,7 @@ public class AudioEncoder {
                     if (encoderListener != null && bufferInfo.presentationTimeUs != 0) {
                         encoderListener.onAAC(outData, bufferInfo.flags,bufferInfo.presentationTimeUs,bufferInfo.size,bufferInfo.offset);
                     }
-                    Log.e(TAG, "audio presentationTimeUs:" + bufferInfo.presentationTimeUs + ",buffer.length:" + bufferInfo.size + ",buffer:" + outData.hashCode());
+//                    Log.e(TAG, "audio presentationTimeUs:" + bufferInfo.presentationTimeUs + ",buffer.length:" + bufferInfo.size + ",buffer:" + outData.hashCode());
 
                     encoder.releaseOutputBuffer(outputBufferIndex, false);
                 }

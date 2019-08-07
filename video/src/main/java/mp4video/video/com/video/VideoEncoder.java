@@ -207,7 +207,7 @@ public class VideoEncoder {
 
                     byte[] outData = new byte[outputBuffer.remaining()];
                     outputBuffer.get(outData, 0, outData.length);
-                    Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+outData.hashCode());
+//                    Log.e(TAG, "vedio presentationTimeUs:" + bufferInfo.presentationTimeUs+",buffer.length:"+bufferInfo.size+",buffer:"+outData.hashCode());
                     if (encoderListener != null && bufferInfo.presentationTimeUs != 0) {
                         encoderListener.onH264(outData,bufferInfo.flags,bufferInfo.presentationTimeUs,bufferInfo.size,bufferInfo.offset);
                     }
