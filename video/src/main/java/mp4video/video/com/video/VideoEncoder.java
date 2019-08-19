@@ -6,6 +6,8 @@ import android.media.MediaCodecList;
 import android.media.MediaFormat;
 import android.util.Log;
 
+import com.rejia.libyuv.YuvUtils;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -23,6 +25,7 @@ public class VideoEncoder {
 
     private static final String TAG = VideoEncoder.class.getSimpleName();
     private static final String MIME_TYPE = "video/avc"; // H.264 Advanced Video
+    private final YuvUtils yuvUtils;
     private MediaCodec encoder = null;
     private int mediaWidth = 1280;
     private int mediaHeight = 720;
@@ -31,14 +34,18 @@ public class VideoEncoder {
     private byte[] yuv;    //存储原始采样数据 yuv420
     private byte[] yuvI420;    //存储原始采样数据 yuv420
     private int mColorFormat;
-    private ByteBuffer mBuffer;
+    private int mRotation;
     private IH264Listener encoderListener;
+    private volatile boolean isStarting;
+
     public void setEncoderListener(IH264Listener listener){
         this.encoderListener = listener;
     }
-    public VideoEncoder(int width, int height) {
+    public VideoEncoder(int width, int height,int rotation) {
+        yuvUtils = new YuvUtils();
         mediaWidth = width;
         mediaHeight = height;
+        mRotation = rotation;
         yuv420sp = new byte[mediaWidth * mediaHeight * 3 / 2];
         yuv = new byte[mediaWidth * mediaHeight * 3 / 2];
         yuvI420 = new byte[mediaWidth * mediaHeight * 3 / 2];
@@ -75,17 +82,20 @@ public class VideoEncoder {
         }
         MediaFormat mediaFormat = null;
         try {
-
-
-            mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE, mediaWidth, mediaHeight);
-            mediaFormat.setInteger(KEY_BIT_RATE, 1500000); //比特率
+            if (mRotation % 180 != 0){
+                //旋转90 或者 270 需要宽高互换
+                mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE,mediaHeight, mediaWidth);
+            }else {
+                mediaFormat = MediaFormat.createVideoFormat(MIME_TYPE, mediaWidth, mediaHeight);
+            }
+            mediaFormat.setInteger(KEY_BIT_RATE, 1200000); //比特率
             mediaFormat.setInteger(KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar); //
             mediaFormat.setInteger(KEY_FRAME_RATE, 20); //帧率
             mediaFormat.setInteger(KEY_I_FRAME_INTERVAL, 1); //I 帧间隔
             encoder = MediaCodec.createByCodecName(mediaCodecInfo.getName());
             encoder.configure(mediaFormat, null, null, CONFIGURE_FLAG_ENCODE);
             encoder.start();
-            mBuffer = ByteBuffer.allocateDirect(1024*100);
+            isStarting = true;
             Log.d(TAG,"video media codec ready");
         } catch (IOException e) {
             Log.e(TAG, "视频编码器 创建失败");
@@ -170,8 +180,18 @@ public class VideoEncoder {
         if (encoder == null) {
             return false;
         }
-
-        NV21toI420SemiPlanar(NV21, yuv420sp, mediaWidth, mediaHeight);
+        if (!isStarting){
+            Log.d(TAG,"video encoder not ready");
+            return false;
+        }
+        if (mRotation == 0){
+            NV21toI420SemiPlanar(NV21, yuv420sp, mediaWidth, mediaHeight);
+        }else {
+            yuvUtils.nv21ToI420(NV21, yuvI420, mediaWidth, mediaHeight);
+            yuvUtils.rotateI420(yuvI420, yuv, mediaWidth, mediaHeight, mRotation);
+            yuvUtils.I420ToY420SP(yuv,yuv420sp,mediaWidth,mediaHeight);
+        }
+        //NV21toI420SemiPlanar(NV21, yuv420sp, mediaWidth, mediaHeight);
        // Log.d(TAG,"格式转换："+(System.currentTimeMillis() - start));
         try {
 
@@ -226,6 +246,7 @@ public class VideoEncoder {
 
 
     public void stop(){
+        isStarting = false;
         releaseCodec();
     }
     private void releaseCodec() {

@@ -38,52 +38,6 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             }
         }
     };
-    private VideoManager.IRecordListener mOnceRecordListnener = new VideoManager.IRecordListener() {
-        @Override
-        public void onRecordStart() {
-
-        }
-
-        @Override
-        public void onRecording() {
-
-        }
-
-        @Override
-        public void onRecordEnd() {
-
-        }
-
-        @Override
-        public void onError() {
-
-        }
-    };
-
-    private VideoManager.IRecordListener mEventRecordListener = new VideoManager.IRecordListener() {
-        @Override
-        public void onRecordStart() {
-
-        }
-
-        @Override
-        public void onRecording() {
-
-        }
-
-        @Override
-        public void onRecordEnd() {
-            //检测有人
-//            manager.startRecord(Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/"+System.currentTimeMillis()+".mp4",
-//                    30,
-//                    mOnceRecordListnener);
-        }
-
-        @Override
-        public void onError() {
-
-        }
-    };
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -98,7 +52,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
 
         path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang";
         manager = VideoManager.getInstance();
-        manager.setup(VideoManager.Mode.EVENT, VideoConfig.videoWidth, VideoConfig.videoHeight, false);
+        manager.setup(VideoManager.Mode.CONTINUE, 0, VideoConfig.videoWidth, VideoConfig.videoHeight, true);
         mSurfaceview = (SurfaceView) findViewById(R.id.surfaceview);
         mSurfaceHolder = mSurfaceview.getHolder(); // 绑定SurfaceView，取得SurfaceHolder对象
         mSurfaceHolder.addCallback(this); // SurfaceHolder加入回调接口
@@ -110,14 +64,39 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             @Override
             public void onClick(View v) {
                 String path = Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/"+System.currentTimeMillis()+".mp4";
-                manager.eventRecord(path, VideoManager.VideoType.OPENDOOR,mEventRecordListener);
+                manager.eventRecord(VideoManager.VideoType.OPENDOOR,null);
             }
         });
 
         findViewById(R.id.start_continue).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                manager.startContinueRecord(null);
+                manager.startContinueRecord(new VideoManager.IRecordListener() {
+                    @Override
+                    public String getPath() {
+                        return Environment.getExternalStorageDirectory().getAbsolutePath()+"/kang/"+System.currentTimeMillis()+".mp4";
+                    }
+
+                    @Override
+                    public void onRecordStart(String path, long startTime, boolean isAudioEable) {
+
+                    }
+
+                    @Override
+                    public void onRecording(long us) {
+
+                    }
+
+                    @Override
+                    public void onRecordEnd(String path) {
+
+                    }
+
+                    @Override
+                    public void onError() {
+
+                    }
+                });
             }
         });
 

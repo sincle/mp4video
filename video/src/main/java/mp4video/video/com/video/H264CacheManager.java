@@ -8,25 +8,27 @@ public class H264CacheManager {
     private static H264CacheManager instance = new H264CacheManager();
     private int time = VideoConfig.h264CacheTime;
     private LinkedList<H264Data> cache = new LinkedList<>();
+    private long lastVideoTime;
 
     public static H264CacheManager getInstance(){
         return instance;
     }
 
     public synchronized void add(H264Data h264){
-        if (isTimeout(cache.peek())){
-            H264Data remove = cache.remove();
-//            Log.e(TAG,"remove:"+remove.hashCode());
+        while (isTimeout(h264)){
+            cache.remove();
         }
-        boolean offer = cache.offer(h264);
+        cache.offer(h264);
     }
 
     private boolean isTimeout(H264Data h264){
         if (h264 == null){
             return false;
         }
-
-        if (System.nanoTime()/1000 - h264.getPts() > time * 1000){
+        if (cache.size() <= 0){
+            return false;
+        }
+        if (h264.getPts() - cache.getFirst().getPts() > time * 1000){
             return true;
         }
         return false;
@@ -48,5 +50,17 @@ public class H264CacheManager {
     }
     public void clear(){
         cache.clear();
+    }
+
+    public long getLastVideoTime() {
+        return lastVideoTime;
+    }
+
+    /**
+     *  pts Us
+     * @param pts
+     */
+    public void setLastVideoTime(long pts) {
+        this.lastVideoTime = pts;
     }
 }
